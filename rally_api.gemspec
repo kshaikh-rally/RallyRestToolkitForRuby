@@ -12,10 +12,10 @@ Gem::Specification.new do |s|
   s.description = "API wrapper for Rally's JSON REST web services api"
 
   s.rubyforge_project = "rally_api"
-
   s.has_rdoc         = false
 
   s.add_dependency('httpclient', '~> 2.3.0')
+  s.add_dependency('nokogiri', '~> 1.6.0')
   s.add_development_dependency('simplecov')
   s.add_development_dependency('rspec')
   s.add_development_dependency('rake')

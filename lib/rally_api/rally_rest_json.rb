@@ -48,13 +48,14 @@ module RallyAPI
 
     attr_accessor :rally_url, :rally_user, :rally_password, :rally_workspace_name, :rally_project_name, :wsapi_version,
                   :rally_headers, :rally_default_workspace, :rally_default_project, :low_debug, :proxy_info,
-                  :rally_rest_api_compat, :logger, :rally_alias_types
+                  :rally_rest_api_compat, :logger, :rally_alias_types, :rally_sso_url
     attr_reader   :rally_connection
 
     def initialize(args)
       @rally_alias_types     = { "story" => "HierarchicalRequirement", "userstory" => "HierarchicalRequirement" }
 
       @rally_url            = args[:base_url] || "https://rally1.rallydev.com/slm"
+      @rally_sso_url        = args[:rally_sso_url]
       @rally_user           = args[:username]
       @rally_password       = args[:password]
       @rally_workspace_name = args[:workspace]
@@ -63,20 +64,12 @@ module RallyAPI
       @rally_headers        = args[:headers]  || CustomHttpHeader.new
       @proxy_info           = args[:proxy]
       @skip_sec_key         = args[:skip_sec_key]
-
       #flag to help RallyRestAPI users to use snake case field names eg Defect.fixed_in_build vs Defect["FixedInBuild"]
-      @rally_rest_api_compat  = args[:rally_rest_api_compat] || false
+      @rally_rest_api_compat = args[:rally_rest_api_compat] || false
+      @low_debug             = args[:debug]  || false
+      @logger                = args[:logger] || nil    #assumes this is an instance of Logger
 
-      @low_debug = args[:debug]  || false
-      @logger    = args[:logger] || nil    #assumes this is an instance of Logger
-
-      @rally_connection = RallyJsonConnection.new(@rally_headers, @low_debug, @proxy_info)
-      @rally_connection.set_client_user(@rally_url, @rally_user, @rally_password)
-      @rally_connection.logger  = @logger unless @logger.nil?
-
-      if @wsapi_version.to_s.include?("v2.") && !@skip_sec_key
-        @rally_connection.setup_security_token(security_url)
-      end
+      setup_rally_connection
 
       if !@rally_workspace_name.nil?
         @rally_default_workspace = find_workspace(@rally_workspace_name)
@@ -89,6 +82,20 @@ module RallyAPI
       end
 
       self
+    end
+
+    def setup_rally_connection
+      @rally_connection = RallyJsonConnection.new(@rally_headers, @low_debug, @proxy_info)
+      @rally_connection.logger  = @logger unless @logger.nil?
+      if @rally_sso_url.nil?
+        @rally_connection.set_client_user(@rally_url, @rally_user, @rally_password)
+      else
+        @rally_connection.do_sso_auth(@rally_sso_url, @rally_user, @rally_password)
+      end
+
+      if @wsapi_version.to_s.include?("v2.") && !@skip_sec_key
+        @rally_connection.setup_security_token(security_url)
+      end
     end
 
     def debug_logging_on

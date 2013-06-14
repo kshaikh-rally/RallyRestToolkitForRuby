@@ -50,4 +50,5 @@ module RallyAPISpecHelper
   EXTRA_SETUP = {}
   EXTRA_SETUP[:nondefault_ws]  = config["NonDefaultWS"]
   EXTRA_SETUP[:custom_pi_type] = config["CustomPIType"]
+  EXTRA_SETUP[:sso_url]        = config["SSO_URL"]
 end

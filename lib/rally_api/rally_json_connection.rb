@@ -1,5 +1,6 @@
-require "httpclient"
+require 'httpclient'
 require 'json'
+require 'nokogiri'
 
 # :stopdoc:
 #Copyright (c) 2002-2012 Rally Software Development Corp. All Rights Reserved.
@@ -66,6 +67,63 @@ module RallyAPI
     def add_security_key(keyval)
       @security_token = keyval
     end
+
+    #==========================================================================================================
+    #new sso auth method - experimental
+    def do_sso_auth(rally_sso_url, sso_user, sso_password)
+      step1res = @rally_http_client.request(:get, rally_sso_url, {:follow_redirect => true})
+      step1action = get_sso_form_info(step1res)
+
+      post_content2 = {:body => step1action[:inputs], :follow_redirect => true}
+      step2res = @rally_http_client.post(step1action[:action_url], post_content2)
+      step2action = get_sso_form_info(step2res)
+      step2formdata = {}
+      step2action[:inputs].each_key do |nm|
+        if nm.downcase.include?("name")
+          step2formdata[nm] = sso_user
+        elsif nm.downcase.include?("pass")
+          step2formdata[nm] = sso_password
+        end
+      end
+
+      base_url = URI.parse(step1action[:action_url])
+
+      step3_url = "#{base_url.scheme}://#{base_url.host}#{step2action[:action_url]}"
+      post_content3 = {:body => step2formdata, :follow_redirect => true}
+      step3res = @rally_http_client.post(step3_url, post_content3)
+      step3action = get_sso_form_info(step3res)
+      post_content4 = {:body => step3action[:inputs], :follow_redirect => true}
+
+      #step4_url = "#{base_url.scheme}://#{base_url.host}#{step3action[:action_url]}"
+      step4res = @rally_http_client.post(step3action[:action_url], post_content4)
+      log_info("got step4 #{step4res.body}")
+
+      step4action = get_sso_form_info(step4res)
+      post_content5 = {:body => step4action[:inputs], :follow_redirect => true}
+      step5res = @rally_http_client.post(step4action[:action_url], post_content5)
+      log_info("got step5 #{step5res.body}")
+
+      res = @rally_http_client.get("https://rally1.rallydev.com/slm/webservice/1.42/user.js")
+      log_info("final result: #{res.body}")
+      true
+    end
+
+    def get_sso_form_info(form_html)
+      log_info ("===================\nparsing #{form_html.body}\n======================")
+      parsed_html = Nokogiri::HTML(form_html.body)
+      inputs = {}
+      parsed_html.css("//input").each do |inp|
+        next if inp["name"].nil?
+        inputs[inp["name"]] = inp["value"]
+      end
+
+      form = parsed_html.at("//form")
+      form_action = form["action"]
+      return_val = {:action_url => form_action, :inputs => inputs}
+      log_info("\n==========================\n#{return_val}\n============================\n")
+      return_val
+    end
+    #==========================================================================================================
 
     def logger=(log_dev)
       @logger = log_dev
