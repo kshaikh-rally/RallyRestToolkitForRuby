@@ -2,7 +2,6 @@
 
 require 'pp'
 require 'base64'
-
 require 'rally_api'
 
 #Configuration for rally connection specified in 00-config.rb
@@ -10,7 +9,6 @@ require_relative '00-config'
 
 jpg_file_name = "earthjello.jpeg"
 jpg_file_path =  File::join(File.dirname(__FILE__),jpg_file_name)
-
 
 def show_some_values(title, defect)
   values = ["Name", "CreationDate", "FormattedID","Attachments"]
